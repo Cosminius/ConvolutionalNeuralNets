@@ -1,0 +1,43 @@
+# Pe GitHub raman doar notebook-urile (.ipynb) si README.md
+
+# Datasets (Fashion-MNIST, Flowers102, imagini)
+datasets/
+data/
+
+# Greutati / checkpoint-uri de modele
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+
+# Output-uri Ultralytics / YOLO
+runs/
+
+# Fisiere media (video de input & predictii randate)
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
