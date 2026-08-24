@@ -1,86 +1,140 @@
 # Convolutional Neural Networks — PyTorch
 
-Cod si notite de la **Capitolul 12 – Deep Computer Vision Using Convolutional Neural Networks** din
+Code and notes from **Chapter 12 – Deep Computer Vision Using Convolutional Neural Networks** of
 *Hands-On Machine Learning with Scikit-Learn and PyTorch* (Aurélien Géron, 2025).
 
-Totul este scris in **PyTorch / torchvision**, rulat local pe GPU Apple Silicon (`device = "mps"`).
+Everything is written in **PyTorch / torchvision**, running locally on an Apple Silicon GPU (`device = "mps"`).
 
 ---
 
-## Continut
+## Contents
 
-### `CNNs.ipynb`
-Notebook-ul principal, care parcurge tot capitolul:
+### `CNNs-chatper12.ipynb`
+The main notebook, working through the whole chapter:
 
-**1. Straturi convolutionale de la zero**
-- Incarcarea imaginilor de test din `sklearn.datasets.load_sample_images()`, normalizare in `[0, 1]` si permutarea la formatul PyTorch `(N, C, H, W)`
-- `T.CenterCrop` pentru decupare, vizualizarea imaginilor cu matplotlib
-- `nn.Conv2d` cu filtre aleatoare — inspectarea formei feature-map-urilor, efectul lui `padding="same"`, forma tensorilor `weight` si `bias`
+**1. Convolutional layers from scratch**
+- Loading the sample images from `sklearn.datasets.load_sample_images()`, scaling to `[0, 1]` and permuting to PyTorch's `(N, C, H, W)` layout
+- `T.CenterCrop` for cropping, plotting the images with matplotlib
+- `nn.Conv2d` with random filters — inspecting feature-map shapes, the effect of `padding="same"`, and the shapes of the `weight` and `bias` tensors
 
-**2. Straturi de pooling**
+**2. Pooling layers**
 - `nn.MaxPool2d`
-- **`DepthPool`** — implementare proprie de *depthwise max pooling* (pooling pe axa canalelor) folosind `F.max_pool1d`
-- Global average pooling: `nn.AdaptiveAvgPool2d(1)` vs. echivalentul manual `mean(dim=(2, 3))`
+- **`DepthPool`** — a custom implementation of *depthwise max pooling* (pooling along the channel axis) using `F.max_pool1d`
+- Global average pooling: `nn.AdaptiveAvgPool2d(1)` vs. the manual equivalent `mean(dim=(2, 3))`
 
-**3. CNN de la zero pe Fashion-MNIST**
-- Arhitectura clasica de tip VGG: blocuri `Conv → ReLU → MaxPool` cu numar dublat de filtre (64 → 128 → 256), urmate de un cap dens cu `Dropout`
-- `DefaultConv2d = partial(nn.Conv2d, kernel_size=3, padding="same")` pentru a scapa de repetitie
-- Split 55 000 / 5 000 / 10 000 (train / valid / test) cu `random_split`
-- Bucla de antrenare proprie (`train`) + functia de evaluare (`evaluate_tm`), cu `torchmetrics.Accuracy`, `CrossEntropyLoss` si `AdamW`
+**3. A CNN from scratch on Fashion-MNIST**
+- Classic VGG-style architecture: `Conv → ReLU → MaxPool` blocks with a doubling filter count (64 → 128 → 256), followed by a dense head with `Dropout`
+- `DefaultConv2d = partial(nn.Conv2d, kernel_size=3, padding="same")` to cut down on repetition
+- A 55,000 / 5,000 / 10,000 (train / valid / test) split via `random_split`
+- A custom training loop (`train`) plus an evaluation function (`evaluate_tm`), using `torchmetrics.Accuracy`, `CrossEntropyLoss` and `AdamW`
 
-**4. Arhitecturi moderne**
-- **`SeparableConv2d`** — convolutie separabila in adancime (depthwise + pointwise), blocul de baza al Xception
-- **`ResidualUnit`** si **`ResNet34`** — vezi notebook-ul dedicat de mai jos
+**4. Modern architectures**
+- **`SeparableConv2d`** — depthwise separable convolution (depthwise + pointwise), the building block of Xception
+- **`ResidualUnit`** and **`ResNet34`** — see the dedicated notebook below
 
-**5. Modele pre-antrenate**
-- `convnext_base` cu greutati `IMAGENET1K_V1`
-- Preprocesare automata prin `weights.transforms()`, predictii top-3 cu `topk` + `softmax`, maparea id-urilor de clase prin `weights.meta["categories"]`
+**5. Pretrained models**
+- `convnext_base` with `IMAGENET1K_V1` weights
+- Automatic preprocessing through `weights.transforms()`, top-3 predictions with `topk` + `softmax`, class-id lookup via `weights.meta["categories"]`
 
-**6. Transfer learning pe Flowers-102**
-- Inlocuirea capului de clasificare (`model.classifier[2]`) cu un `nn.Linear` de 102 clase
-- Antrenare in doua faze: intai cu **backbone-ul inghetat** (`requires_grad = False`), apoi cu **tot modelul dezghetat** pentru fine-tuning
+**6. Transfer learning on Flowers-102**
+- Replacing the classification head (`model.classifier[2]`) with a 102-class `nn.Linear`
+- Two-phase training: first with the **backbone frozen** (`requires_grad = False`), then with the **whole model unfrozen** for fine-tuning
 - Data augmentation: `RandomHorizontalFlip`, `RandomRotation`, `RandomResizedCrop`, `ColorJitter`, `Normalize`
 
-**7. Clasificare + localizare**
-- **`FlowerLocator`** — modelul ConvNeXt cu doua capete: unul de clasificare si unul de regresie pentru bounding box (4 coordonate)
-- `torchvision.tv_tensors.BoundingBoxes` — bounding box-uri care se transforma automat impreuna cu imaginea (format `CXCYWH`)
-- Utilitare de vizualizare: `get_image_with_bbox()` (`draw_bounding_boxes` + `box_convert`) si `denormalize()` pentru a anula normalizarea ImageNet
-- **`FlowersWithBbox`** — `Dataset` custom care returneaza imagine + `{"label", "bbox"}`
+**7. Classification + localization**
+- **`FlowerLocator`** — a ConvNeXt model with two heads: one for classification and one that regresses a bounding box (4 coordinates)
+- `torchvision.tv_tensors.BoundingBoxes` — bounding boxes that are transformed automatically together with the image (`CXCYWH` format)
+- Visualization helpers: `get_image_with_bbox()` (`draw_bounding_boxes` + `box_convert`) and `denormalize()` to undo the ImageNet normalization
+- **`FlowersWithBbox`** — a custom `Dataset` returning the image plus `{"label", "bbox"}`
 
 **8. Object detection**
-- **YOLOv9** prin `ultralytics`: inferenta pe imagini si **tracking** pe video (`model.track(..., stream=True)`), cu citirea `track_id`-urilor per frame
+- **YOLOv9** through `ultralytics`: inference on images and **tracking** on video (`model.track(..., stream=True)`), reading the per-frame `track_id`s
 
-**9. Segmentare semantica**
-- `fcn_resnet50` pre-antrenat — extragerea mastii pentru clasa `person` din softmax si aplicarea ei peste imaginea originala
+**9. Semantic segmentation**
+- Pretrained `fcn_resnet50` — extracting the `person` class mask from the softmax output and overlaying it on the original image
 
-**10. Metrica mAP**
-- `maximum_precisions()` — precizia maxima cumulata invers, curba precision/recall si calculul **mAP**
+**10. The mAP metric**
+- `maximum_precisions()` — the reverse cumulative maximum precision, the precision/recall curve, and the **mAP** computation
 
 ### `ResNet-34.ipynb`
-Implementarea ResNet-34 de la zero:
-- **`ResidualUnit`** — doua straturi `Conv → BatchNorm → ReLU` pe calea principala, plus skip connection cu convolutie `1×1` atunci cand `stride > 1` (pentru a potrivi dimensiunile)
-- **`ResNet34`** — stem `7×7 / stride 2` + `MaxPool`, apoi blocurile `[64]*3 + [128]*4 + [256]*6 + [512]*3`, global average pooling si stratul dens final
+ResNet-34 implemented from scratch:
+- **`ResidualUnit`** — two `Conv → BatchNorm → ReLU` layers on the main path, plus a skip connection with a `1×1` convolution whenever `stride > 1` (to match the dimensions)
+- **`ResNet34`** — a `7×7 / stride 2` stem + `MaxPool`, then the `[64]*3 + [128]*4 + [256]*6 + [512]*3` blocks, global average pooling, and the final dense layer
 
 ---
 
-## Dependinte
+## Exercises (Chapter 12)
+
+### `CNN-MNIST.ipynb` — a CNN from scratch on MNIST
+> *Exercise 9: "Build your own CNN from scratch and try to achieve the highest possible accuracy on MNIST."*
+
+**Result: ~99.4% accuracy on the test set.**
+
+- **Data**: MNIST (`torchvision.datasets`), normalized with the dataset's mean/std (`0.1307` / `0.3081`);
+  a 55,000 / 5,000 `random_split` of the training set for validation (fixed seed, `torch.manual_seed(23)`), plus the 10,000 test images
+- **`MNISTClassifier` architecture** — 4 `Conv2d(3×3, padding="same") → BatchNorm2d → LeakyReLU` blocks
+  with a doubling filter count (16 → 32 → 64 → 128) and a `MaxPool2d(2)` after every pair,
+  then **global average pooling** (`AdaptiveAvgPool2d(1)`) and a `128 → 256 → 128 → 10` dense head
+  with `LeakyReLU` between the layers (without activations, the three `Linear` layers would mathematically collapse into one)
+- **Training** — `AdamW` + `CrossEntropyLoss`, `torchmetrics.Accuracy`, 20 epochs (~10 s/epoch on MPS)
+- **`train_with_early_stopping_lr_scheduler_warm_up()`** — a custom training loop combining three mechanisms:
+  - **warm-up** over the first 3 epochs (`LambdaLR`, learning rate ramping from 10% to 100%)
+  - **`ReduceLROnPlateau`** (`mode="max"`, `patience=2`, `factor=0.1`) after warm-up — the jump off the plateau
+    (`valid: 0.9814 → 0.9938`) right after the learning rate drop is clearly visible
+  - **early stopping** with checkpointing: the `state_dict` is saved every time validation accuracy improves,
+    and the best model is reloaded at the end
+- **Plots** — the training loss and the train vs. validation curves, showing the effect of the learning rate drop
+
+### `transfer_learning.ipynb` — transfer learning on Hymenoptera (bees vs. ants)
+> *Exercise 10: "Use transfer learning for large image classification" (the dataset from the official PyTorch tutorial).*
+
+**Result: 100% on both validation and test**, after 7 epochs of feature extraction + 6 of fine-tuning.
+
+- **Data**: `hymenoptera_data` loaded with `ImageFolder` (244 training images, 153 validation);
+  those 153 are split further into **70 validation / 83 test** with `random_split`
+- **Preprocessing pipeline** (`torchvision.transforms.v2`), different for training and evaluation:
+  - train: `RandomResizedCrop(224)` + `RandomHorizontalFlip` (data augmentation)
+  - val/test: `Resize(256)` + `CenterCrop(224)`
+  - both: normalization with the ImageNet statistics (`[0.485, 0.456, 0.406]` / `[0.229, 0.224, 0.225]`)
+- **Model**: pretrained `convnext_small` (`ConvNeXt_Small_Weights.IMAGENET1K_V1`),
+  with `model.classifier[2]` replaced by an `nn.Linear(768, 2)`
+- **Two-phase training**, using the same loop as MNIST (warm-up + `ReduceLROnPlateau` + early stopping with `patience=5`):
+  1. **Feature extraction** — the whole backbone frozen (`requires_grad = False`), only the classification head
+     is trained; `AdamW` with the default learning rate, ~6 s/epoch on MPS
+  2. **Fine-tuning** — the whole model is unfrozen and training continues with a **small learning rate (`1e-5`)**,
+     so the representations learned on ImageNet are not destroyed; ~18 s/epoch
+
+> **Why 100%?** There is no leakage between the splits (training lives in a separate folder, and validation and test
+> come out of the same `random_split`, so they cannot overlap). The task is simply easy: ImageNet already contains ant
+> and bee classes, so the backbone arrives with almost ready-made features, and the evaluation sets are tiny
+> (70 and 83 images respectively) — a single mistake would already cost ~1.2%. The fine-tuning phase has essentially
+> nothing left to improve; it only shows that the model does not degrade.
+
+> `hymenoptera_data` is not downloaded automatically — grab it
+> [here](https://download.pytorch.org/tutorial/hymenoptera_data.zip) and unzip it into `datasets/hymenoptera/`
+> (structure: `train/{ants,bees}` and `val/{ants,bees}`).
+
+---
+
+## Dependencies
 
 ```bash
 pip install torch torchvision torchmetrics scikit-learn matplotlib numpy ultralytics
 ```
 
-## Rulare
+## Running
 
 ```bash
 jupyter lab
 ```
 
-Seturile de date (Fashion-MNIST, Flowers-102) se descarca automat in `datasets/`,
-iar greutatile YOLO (`yolov9m.pt`) la prima rulare — de aceea nu sunt urcate in repo.
+The datasets (Fashion-MNIST, MNIST, Flowers-102) are downloaded automatically into `datasets/`,
+and the YOLO weights (`yolov9m.pt`) on first run — which is why they are not committed to the repo.
+The one exception is `hymenoptera_data`, which has to be downloaded manually (see above).
 
-> Notebook-urile folosesc `device = "mps"` (Apple Silicon). Pe alt hardware, schimba in `"cuda"` sau `"cpu"`.
+> The notebooks use `device = "mps"` (Apple Silicon). On other hardware, change it to `"cuda"` or `"cpu"`.
 
-## Ce este in repo
+## What's in the repo
 
-Doar notebook-urile si acest README. Datasets, greutati de modele, video-uri,
-output-urile YOLO din `runs/` si fisierele de IDE sunt excluse prin `.gitignore`.
+Only the notebooks and this README. Datasets, model weights, videos,
+the YOLO outputs in `runs/` and IDE files are excluded via `.gitignore`.
